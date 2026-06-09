@@ -1,33 +1,40 @@
 package universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.services.impls;
 
+// --- IMPORTS DE VOTRE COUCHE SINT ---
 import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.entities.dtos.ElementDispoDTO;
 import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.entities.dtos.JoueurDispoDTO;
 import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.entities.dtos.QuestionnaireDispoDTO;
 import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.services.interfaces.GestionPartieService;
-// À remplacer plus tard par la vraie interface du SI Joueur
+import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.utils.exceptions.AucunJoueurException;
 import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.utils.exceptions.AucuneQuestionException;
-import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuiz.utils.exceptions.ChargementImpossibleException;
-import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuizz.services.interfaces.IJoueurService;
-import universite_paris8.iut.qdev.tp2026.gr21.jeuQuizz.entities.dtos.QuestionnaireDTO;
+
+// --- IMPORTS DU SME QUESTIONNAIRE (Attention: paris8 en minuscule) ---
 import universite_paris8.iut.qdev.tp2026.gr21.jeuQuizz.services.interfaces.IQuestionnaireService;
+import universite_paris8.iut.qdev.tp2026.gr21.jeuQuizz.entities.dtos.QuestionnaireDTO;
+import universite_paris8.iut.qdev.tp2026.gr21.jeuQuizz.entities.dtos.QuestionDTO;
+import universite_paris8.iut.qdev.tp2026.gr21.jeuQuizz.utils.exceptions.ChargementImpossibleException;
+
+// --- IMPORTS DU SME JOUEUR (Attention: Paris8 avec P majuscule selon votre code) ---
+import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuizz.services.interfaces.IJoueurService;
+import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuizz.entities.dtos.JoueurDTO;
+import universite_Paris8.iut.qdev.tp2026.gr21.jeuQuizz.utils.exceptions.AucunJoueurEnregistreException;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class GestionPartieServiceImpl implements GestionPartieService {
 
-    // On utilise maintenant LA VRAIE interface du SI Questionnaire
-    private IQuestionnaireService questionnaireService;
-    private final IJoueurService siJoueur;
+    private final IQuestionnaireService questionnaireService;
+    private final IJoueurService joueurService;
 
-    public GestionPartieServiceImpl(IQuestionnaireService questionnaireService, IJoueurService siJoueur) {
+    // Injection des véritables interfaces des deux autres équipes
+    public GestionPartieServiceImpl(IQuestionnaireService questionnaireService, IJoueurService joueurService) throws ChargementImpossibleException, AucunJoueurEnregistreException {
         this.questionnaireService = questionnaireService;
-        this.siJoueur = siJoueur;
+        this.joueurService = joueurService;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public ElementDispoDTO determinerElementsDispo() {
+    public ElementDispoDTO determinerElementsDispoPourPartie(){
 
         ElementDispoDTO elementDispoDTO = new ElementDispoDTO();
 
@@ -38,35 +45,49 @@ public class GestionPartieServiceImpl implements GestionPartieService {
         List<QuestionnaireDTO> listQuestionnairesBruts = null;
 
         try {
-            // On appelle la vraie méthode
+            // Appel de la méthode de vos camarades
             listQuestionnairesBruts = questionnaireService.fournirListeQuestionnaires();
         } catch (ChargementImpossibleException e) {
-            // Si le SI n'arrive pas à charger, on lève notre exception métier SINT
+            // Traduction de l'erreur SME vers l'erreur SINT
             throw new AucuneQuestionException("Il n'y a pas de question : charger un fichier de question");
         }
 
-        // Si la liste est nulle ou vide (même si le chargement a réussi)
         if (listQuestionnairesBruts == null || listQuestionnairesBruts.isEmpty()) {
             throw new AucuneQuestionException("Il n'y a pas de question : charger un fichier de question");
         }
 
-        // MAPPING : On convertit les QuestionnaireDTO (du SI) en QuestionnaireDispoDTO (de notre SINT)
+        // Mapping et Calcul des difficultés
         List<QuestionnaireDispoDTO> listQuestionnairesDispo = new ArrayList<>();
 
         for (QuestionnaireDTO q : listQuestionnairesBruts) {
             QuestionnaireDispoDTO qDTO = new QuestionnaireDispoDTO();
-            // J'utilise ici les noms supposés de vos Getters dans QuestionnaireDTO
-            // Adaptez-les si les attributs s'appellent différemment dans QuestionnaireDTO
-            qDTO.setIdQuestionnair(q.getIdQuestionnair());
-            qDTO.setLangue(q.getLangue());
-            qDTO.setNbQstSimple(q.getNbQstSimple());
-            qDTO.setNbQstIntermediaire(q.getNbQstIntermediaire());
-            qDTO.setNbQstExpert(q.getNbQstExpert());
+            qDTO.setIdQuestionnair(q.getIdQuestionnaire());
+
+            // On compte les questions par difficulté en lisant la liste interne
+            int nbSimple = 0, nbInter = 0, nbExpert = 0;
+            String langue = "Inconnue";
+
+            if (q.getListeQuestion() != null && !q.getListeQuestion().isEmpty()) {
+                // On récupère la langue depuis la première question
+                langue = q.getListeQuestion().get(0).getLangue().name();
+
+                // On boucle sur les questions pour faire les totaux
+                for (QuestionDTO question : q.getListeQuestion()) {
+                    int diff = question.getDifficulte();
+                    if (diff == 1) nbSimple++;
+                    else if (diff == 2) nbInter++;
+                    else if (diff == 3) nbExpert++;
+                }
+            }
+
+            qDTO.setNbQstSimple(nbSimple);
+            qDTO.setNbQstIntermediaire(nbInter);
+            qDTO.setNbQstExpert(nbExpert);
+            qDTO.setLangue(langue);
 
             listQuestionnairesDispo.add(qDTO);
         }
 
-        // On affecte la liste convertie à notre objet final
         elementDispoDTO.setListQuestionnaire(listQuestionnairesDispo);
 
 
@@ -74,15 +95,38 @@ public class GestionPartieServiceImpl implements GestionPartieService {
         // ETAPE 2 : APPEL DU SI JOUEUR
         // =========================================================
 
-        List<JoueurDispoDTO> listJoueurs =
-                (List<JoueurDispoDTO>) siJoueur.listerJoueur();
-
-        // Vérification avec notre exception personnalisée
-        if (listJoueurs == null || listJoueurs.isEmpty()) {
+        List<JoueurDTO> listJoueursBruts = null;
+        try {
+            listJoueursBruts = joueurService.listerJoueurs();
+        } catch (AucunJoueurEnregistreException e) {
             throw new AucunJoueurException("Il n'y a aucun joueur : créer un joueur pour lancer une partie");
         }
 
-        elementDispoDTO.setListJoueurDispo(listJoueurs);
+        if (listJoueursBruts == null || listJoueursBruts.isEmpty()) {
+            throw new AucunJoueurException("Il n'y a aucun joueur : créer un joueur pour lancer une partie");
+        }
+
+        List<JoueurDispoDTO> listJoueursDispo = new ArrayList<>();
+
+        // Création d'un faux ID temporaire pour dépanner
+        int fauxIdTemporaire = 1;
+
+        for (JoueurDTO j : listJoueursBruts) {
+            JoueurDispoDTO jDTO = new JoueurDispoDTO();
+
+            // On utilise notre compteur comme ID en attendant que les collègues corrigent
+            jDTO.setIdJoueur(fauxIdTemporaire);
+            fauxIdTemporaire++; // Le prochain joueur aura l'ID 2, puis 3, etc.
+
+            jDTO.setPrenom(j.getPrenom());
+            jDTO.setPseudo(j.getPseudo());
+
+            listJoueursDispo.add(jDTO);
+        }
+
+        elementDispoDTO.setListJoueurDispo(listJoueursDispo);
+
+
 
         // =========================================================
         // FIN DU FLUX
@@ -91,8 +135,5 @@ public class GestionPartieServiceImpl implements GestionPartieService {
         return elementDispoDTO;
     }
 
-    @Override
-    public ElementDispoDTO determinerElementsDispoPourPartie() {
-        return null;
-    }
+
 }
