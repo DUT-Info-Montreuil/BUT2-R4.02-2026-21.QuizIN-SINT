@@ -30,6 +30,12 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>5.23.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>universite_Paris8.iut.qdev.tp2026.gr21.jeuQuizz</groupId>
       <artifactId>joueur_sme</artifactId>
       <version>1.0.0-SNAPSHOT</version>
@@ -44,6 +50,7 @@
       <artifactId>junit-jupiter-api</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Source: https://mvnrepository.com/artifact/org.mockito/mockito-junit-jupiter -->
     <!-- Optionally: parameterized tests support -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

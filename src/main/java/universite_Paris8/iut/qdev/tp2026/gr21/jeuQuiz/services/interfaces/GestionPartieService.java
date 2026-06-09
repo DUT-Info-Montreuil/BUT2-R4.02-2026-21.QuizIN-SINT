@@ -14,4 +14,6 @@ public interface GestionPartieService {
      */
     ElementDispoDTO determinerElementsDispoPourPartie() throws AucuneQuestionException, AucunJoueurException;
 
+    // simuler les retours d'appels de joueur et qst de plusiseurs test (liste vide, liste pleine pour les 2)
+
 }
